@@ -18,6 +18,8 @@ interface WizardState {
   projectName: string;
   projectDescription: string;
   appType: "Web App" | "Desktop App" | "Android App" | "";
+  attachedFileName: string;
+  attachedFileContent: string;
   generatedJrd: string;
 }
 
@@ -26,6 +28,8 @@ const state: WizardState = {
   projectName: "",
   projectDescription: "",
   appType: "",
+  attachedFileName: "",
+  attachedFileContent: "",
   generatedJrd: ""
 };
 
@@ -49,6 +53,7 @@ const errorMessageText = document.getElementById("error-message-text") as HTMLEl
 const retryBtn = document.getElementById("retry-btn") as HTMLButtonElement;
 const step1SummaryVal = document.getElementById("step-1-summary-val") as HTMLElement;
 const editStep1Btn = document.getElementById("edit-step-1-btn") as HTMLButtonElement;
+const askAiKeyBtn = document.getElementById("ask-ai-key-btn") as HTMLButtonElement;
 
 // Animation Slot elements
 const animIdle = document.getElementById("anim-idle") as HTMLElement;
@@ -62,13 +67,20 @@ const step2Form = document.getElementById("step-2-form") as HTMLFormElement;
 const projectNameInput = document.getElementById("project-name-input") as HTMLInputElement;
 const step2SummaryVal = document.getElementById("step-2-summary-val") as HTMLElement;
 const editStep2Btn = document.getElementById("edit-step-2-btn") as HTMLButtonElement;
+const askAiNameBtn = document.getElementById("ask-ai-name-btn") as HTMLButtonElement;
 
-// Step 3: Project Description
+// Step 3: Project Description & File Attachment
 const step3Card = document.getElementById("step-3-card") as HTMLElement;
 const step3Form = document.getElementById("step-3-form") as HTMLFormElement;
 const projectDescriptionInput = document.getElementById("project-description-input") as HTMLTextAreaElement;
 const step3SummaryVal = document.getElementById("step-3-summary-val") as HTMLElement;
 const editStep3Btn = document.getElementById("edit-step-3-btn") as HTMLButtonElement;
+const askAiDescBtn = document.getElementById("ask-ai-desc-btn") as HTMLButtonElement;
+const attachFileBtn = document.getElementById("attach-file-btn") as HTMLButtonElement;
+const fileAttachmentInput = document.getElementById("file-attachment-input") as HTMLInputElement;
+const attachedFilePill = document.getElementById("attached-file-pill") as HTMLElement;
+const attachedFileName = document.getElementById("attached-file-name") as HTMLElement;
+const removeFileBtn = document.getElementById("remove-file-btn") as HTMLButtonElement;
 
 // Step 4: App Type
 const step4Card = document.getElementById("step-4-card") as HTMLElement;
@@ -270,14 +282,15 @@ function completeStep3() {
 }
 
 // ============================================================================
-// STEP 4: App Type Selection Logic
+// STEP 4: App Type Selection Logic (Single selection)
 // ============================================================================
 function selectAppType(type: "Web App" | "Desktop App" | "Android App") {
   state.appType = type;
 
-  // Update UI cards
+  // Update UI cards - only one is selected
   document.querySelectorAll(".app-type-card").forEach((card) => {
-    const isSelected = card.getAttribute("data-type") === type;
+    const cardType = card.getAttribute("data-type") as "Web App" | "Desktop App" | "Android App";
+    const isSelected = cardType === type;
     card.classList.toggle("selected", isSelected);
     card.setAttribute("aria-checked", String(isSelected));
   });
@@ -287,7 +300,7 @@ function selectAppType(type: "Web App" | "Desktop App" | "Android App") {
 }
 
 // ============================================================================
-// STEP 5: AI Generation Logic (Gemini API with Model Discovery)
+// Gemini API Helper
 // ============================================================================
 async function fetchSupportedModels(key: string): Promise<string[]> {
   try {
@@ -322,6 +335,160 @@ async function fetchSupportedModels(key: string): Promise<string[]> {
   }
 }
 
+async function callGeminiQuick(promptText: string): Promise<string | null> {
+  if (!state.apiKey) return null;
+  const models = await fetchSupportedModels(state.apiKey);
+  const modelsToTry = models.length > 0 ? models : [
+    "models/gemini-2.0-flash",
+    "models/gemini-1.5-flash",
+    "models/gemini-1.5-flash-latest"
+  ];
+
+  for (const modelPath of modelsToTry) {
+    const cleanPath = modelPath.startsWith("models/") ? modelPath : `models/${modelPath}`;
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/${cleanPath}:generateContent?key=${encodeURIComponent(state.apiKey)}`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: promptText }] }]
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data?.candidates?.[0]?.content?.parts?.[0]?.text) {
+        return data.candidates[0].content.parts[0].text.trim();
+      }
+    } catch {
+      // Continue to next model
+    }
+  }
+  return null;
+}
+
+// ============================================================================
+// ASK AI: Smart Contextual Auto-Fill Feature
+// ============================================================================
+
+/**
+ * Ask AI for API Key Field
+ * Validates, guides, or checks clipboard
+ */
+async function handleAskAiKey() {
+  const currentVal = apiKeyInput.value.trim();
+
+  if (currentVal) {
+    // If user already typed something, validate it directly
+    validateApiKey(currentVal);
+    return;
+  }
+
+  // If empty, check clipboard
+  try {
+    const clipboardText = await navigator.clipboard.readText();
+    if (clipboardText && clipboardText.trim().startsWith("AIzaSy")) {
+      apiKeyInput.value = clipboardText.trim();
+      validateApiKey(clipboardText.trim());
+      apiKeyInput.classList.add("ai-filled-highlight");
+      setTimeout(() => apiKeyInput.classList.remove("ai-filled-highlight"), 1200);
+      return;
+    }
+  } catch {
+    // Clipboard permission not granted
+  }
+
+  // Show helpful guidance
+  setStatus("To get an API key, visit Google AI Studio (aistudio.google.com/app/apikey). Free & takes 10 seconds!", "loading");
+  apiKeyInput.focus();
+}
+
+/**
+ * Ask AI for Project Name Field
+ * Suggests or refines project name based on context
+ */
+async function handleAskAiName() {
+  if (!state.apiKey) {
+    alert("Please verify your Google AI Studio API key first in Step 1.");
+    return;
+  }
+
+  const currentVal = projectNameInput.value.trim();
+  const descVal = projectDescriptionInput.value.trim() || state.projectDescription;
+
+  askAiNameBtn.classList.add("thinking");
+  const originalText = askAiNameBtn.innerHTML;
+  askAiNameBtn.innerHTML = `<span>Thinking...</span>`;
+
+  let prompt = "";
+  if (descVal && !currentVal) {
+    prompt = `Suggest ONE catchy, modern, memorable product/project name for an application with this description: "${descVal}". Output ONLY the product name itself (2 to 4 words max), no quotes, no markdown, no explanation.`;
+  } else if (currentVal) {
+    prompt = `Refine and improve this project name to make it more professional, modern, and brandable: "${currentVal}". Context: "${descVal || "software application"}". Output ONLY the improved name itself, no quotes, no markdown.`;
+  } else {
+    prompt = `Suggest ONE creative, high-impact product name for a modern technology application (e.g. SwiftSync, PulseFlow, OmniTask). Output ONLY the product name itself, no quotes, no markdown.`;
+  }
+
+  const suggestedName = await callGeminiQuick(prompt);
+
+  askAiNameBtn.classList.remove("thinking");
+  askAiNameBtn.innerHTML = originalText;
+
+  if (suggestedName) {
+    // Clean up quotes or periods
+    const cleanName = suggestedName.replace(/["'*.]/g, "").trim();
+    projectNameInput.value = cleanName;
+    projectNameInput.classList.add("ai-filled-highlight");
+    setTimeout(() => projectNameInput.classList.remove("ai-filled-highlight"), 1200);
+  } else {
+    projectNameInput.value = "OmniFlow Pro";
+  }
+}
+
+/**
+ * Ask AI for Project Description Field
+ * Generates or enriches project description based on context
+ */
+async function handleAskAiDesc() {
+  if (!state.apiKey) {
+    alert("Please verify your Google AI Studio API key first in Step 1.");
+    return;
+  }
+
+  const projectName = projectNameInput.value.trim() || state.projectName || "Product";
+  const currentDesc = projectDescriptionInput.value.trim();
+
+  askAiDescBtn.classList.add("thinking");
+  const originalText = askAiDescBtn.innerHTML;
+  askAiDescBtn.innerHTML = `<span>Thinking...</span>`;
+
+  const attachedContext = state.attachedFileContent
+    ? `\nReference file context (${state.attachedFileName}):\n"${state.attachedFileContent.slice(0, 3000)}"\n`
+    : "";
+
+  let prompt = "";
+  if (currentDesc) {
+    prompt = `You are an expert product manager. Expand, improve, and polish this product description for "${projectName}": "${currentDesc}".${attachedContext} Write a comprehensive, well-structured 2-paragraph summary detailing the core purpose, target audience, primary user problem solved, and 3-4 key standout features. Write in natural professional language. Do not use markdown headers, write clean formatted paragraphs.`;
+  } else if (projectName && projectName !== "Product") {
+    prompt = `You are an expert product manager. Write a compelling, realistic product description for an application named "${projectName}".${attachedContext} Outline the core purpose, target audience, primary problem it solves, and 3-4 essential standout features. Write in natural, professional language in 2 paragraphs. Do not use markdown headers.`;
+  } else {
+    prompt = `You are an expert product manager. Write a compelling product description for a modern software application.${attachedContext} Outline the core purpose, target audience, primary problem it solves, and 3-4 key features in 2 natural paragraphs.`;
+  }
+
+  const generatedDesc = await callGeminiQuick(prompt);
+
+  askAiDescBtn.classList.remove("thinking");
+  askAiDescBtn.innerHTML = originalText;
+
+  if (generatedDesc) {
+    projectDescriptionInput.value = generatedDesc;
+    projectDescriptionInput.classList.add("ai-filled-highlight");
+    setTimeout(() => projectDescriptionInput.classList.remove("ai-filled-highlight"), 1200);
+  }
+}
+
+// ============================================================================
+// STEP 5: AI Generation Logic (Gemini API with JRD Structure)
+// ============================================================================
 async function generateJrdDocument() {
   if (!state.apiKey || !state.projectName || !state.projectDescription || !state.appType) {
     alert("Please complete all steps before generating the JRD document.");
@@ -354,68 +521,71 @@ async function generateJrdDocument() {
     ];
   }
 
-  // Construct rigorous JRD prompt tailored to app type
-  const prompt = `You are a Principal Technical Product Architect. Create a comprehensive, production-grade Joint Requirements Document (JRD) based on the following project context:
+  const attachedContext = state.attachedFileContent
+    ? `\nATTACHED REFERENCE FILE CONTEXT (${state.attachedFileName}):\n"""\n${state.attachedFileContent.slice(0, 15000)}\n"""\n`
+    : "";
+
+  // Structured JRD Prompt as requested with all required sections:
+  // Overview, Project Objective, Scope, Functional Requirements,
+  // User Flows, Non-functional Requirements, Technical Considerations, Platform Selection
+  const prompt = `You are a Principal Product Architect and Senior Technical Lead. Generate a comprehensive, professional Joint Requirements Document (JRD) based on the following verified specifications:
 
 PROJECT NAME: ${state.projectName}
 PROJECT DESCRIPTION: ${state.projectDescription}
-TARGET APPLICATION PLATFORM: ${state.appType}
+TARGET APP PLATFORM: ${state.appType}
+${attachedContext}
 
-Please generate an exhaustive, professional, and well-structured JRD with the following mandatory numbered sections:
+Please generate an exhaustive, professional, and well-structured JRD with the following mandatory sections:
 
 # Joint Requirements Document (JRD): ${state.projectName}
 
-## 1. Document Control & Executive Summary
-- Document Version: 1.0 (Draft)
-- Platform Target: ${state.appType}
-- Executive Summary: Brief synopsis of the product vision, market problem, and core value proposition.
+## 1. Overview
+- Executive Summary of the product vision, market problem, and value proposition.
+- Target Application Platform: ${state.appType}.
+- Document Version & Status: 1.0 (Draft).
 
-## 2. Project Objectives & Problem Statement
+## 2. Project Objective
 - Core Problem Statement
-- Strategic Business Objectives & Expected ROI
+- Strategic Business Objectives & Expected Outcomes
 - Success Metrics & Key Performance Indicators (KPIs)
 
-## 3. Stakeholder & Target User Personas
-- Primary User Personas with pain points and user goals
-- Secondary Personas (e.g., Administrators, Compliance officers)
-- Stakeholder Matrix
+## 3. Scope
+- In-Scope Features & Deliverables
+- Out-of-Scope (Deferred to future releases)
+- Target Stakeholders & Primary User Personas
 
-## 4. Platform Architecture & Technical Stack (${state.appType})
-- Platform Architecture rationale specifically tailored to ${state.appType}
-- Recommended Frontend/Client Framework and state management
-- Backend, Database, and API Architecture
-- Offline/Local Data Storage Strategy (if applicable to ${state.appType})
-- Third-party Integrations & External Services
+## 4. Functional Requirements
+- Epic 1: User Onboarding, Authentication & Profile Management
+- Epic 2: Core Platform Functionality & Workflow Operations
+- Epic 3: Data Management, Persistence, Sync & Reporting
+- Epic 4: Administration, Configuration & Preferences
+(Provide clear, actionable bulleted requirements with acceptance conditions for each epic)
 
-## 5. Functional Requirements (Epics & Feature Specifications)
-- Epic 1: Authentication & Onboarding
-- Epic 2: Core Workflow & Primary User Features
-- Epic 3: Data Management & Analytics
-- Epic 4: Administration & Settings
-(For each epic, provide clear bulleted functional requirements and acceptance criteria)
+## 5. User Flows
+- Primary User Journey & Step-by-Step Flow
+- Secondary/Exception Paths & Error Recovery
+- Key Screen Transitions and Interaction Touchpoints
 
-## 6. Non-Functional Requirements (NFRs)
-- Performance & Latency Benchmarks (Load times, response SLAs)
+## 6. Non-functional Requirements
+- Performance & SLA Latency Benchmarks (response SLAs, load times)
 - Security & Encryption Standards (Authentication, Authorization, Data-at-rest & in-transit)
 - Scalability & Resource Utilization
 - Reliability & Disaster Recovery
 
-## 7. UI/UX Guidelines & Platform-Specific Design
-- Design Philosophy & Theme specifications
-- Platform-specific UX requirements (e.g., responsive breakpoints for Web, keyboard shortcuts and system tray for Desktop, touch gestures and material guidelines for Android)
+## 7. Technical Considerations
+- Platform Architecture Rationale (${state.appType})
+- Recommended Client Framework, State Management & UI Library
+- Backend, Database, and API Architecture
+- Offline/Local Storage Strategy (if applicable)
+- Third-party Integrations & External Services
 
-## 8. Assumptions, Dependencies & Risk Mitigation
-- Technical Assumptions
-- External Dependencies (APIs, third-party libraries)
-- Potential Risks & Mitigation Matrix
+## 8. Platform Selection
+- Detailed Rationale for selecting ${state.appType}
+- Platform-specific UX guidelines and device interaction requirements (e.g., responsive web design considerations, desktop windowing/offline caching, or Android material touch interactions)
+- Implementation Roadmap (Phase 1 MVP, Phase 2 Beta, Phase 3 Production)
+- Release Acceptance Criteria & Definition of Done
 
-## 9. Implementation Roadmap & Release Criteria
-- Phase 1: MVP / Prototype
-- Phase 2: Beta Testing & Hardening
-- Phase 3: Production Rollout & Post-Launch Monitoring
-- Definition of Done (DoD) & Acceptance Sign-off
-
-Make the document detailed, authoritative, structured with markdown headings, bullet points, and bold terms.`;
+Make the document detailed, authoritative, structured with markdown headings, bullet points, and bold terms in natural, polished business language.`;
 
   let responseText = "";
   let usedModelName = "";
@@ -650,7 +820,6 @@ async function downloadWordDocument() {
 
 function parseInlineFormattingToRuns(text: string): TextRun[] {
   const runs: TextRun[] = [];
-  // Split on bold markdown **...**
   const parts = text.split(/(\*\*.*?\*\*)/g);
 
   for (const part of parts) {
@@ -681,10 +850,14 @@ function resetWizard() {
   state.projectName = "";
   state.projectDescription = "";
   state.appType = "";
+  state.attachedFileName = "";
+  state.attachedFileContent = "";
   state.generatedJrd = "";
 
   projectNameInput.value = "";
   projectDescriptionInput.value = "";
+  if (fileAttachmentInput) fileAttachmentInput.value = "";
+  attachedFilePill?.classList.add("hidden");
   document.querySelectorAll(".app-type-card").forEach((c) => c.classList.remove("selected"));
   generateJrdBtn.disabled = true;
 
@@ -801,6 +974,11 @@ window.addEventListener("DOMContentLoaded", () => {
     smoothScrollTo(step1Card);
   });
 
+  // Ask AI Button for API Key
+  askAiKeyBtn?.addEventListener("click", () => {
+    handleAskAiKey();
+  });
+
   // Step 2: Project Name Submission
   step2Form?.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -815,13 +993,18 @@ window.addEventListener("DOMContentLoaded", () => {
     smoothScrollTo(step2Card);
   });
 
+  // Ask AI Button for Project Name
+  askAiNameBtn?.addEventListener("click", () => {
+    handleAskAiName();
+  });
+
   // Step 3: Project Description Submission
   step3Form?.addEventListener("submit", (e) => {
     e.preventDefault();
     completeStep3();
   });
 
-  // Ctrl+Enter / Cmd+Enter inside Description Textarea submits
+  // Ctrl+Enter inside Description Textarea submits
   projectDescriptionInput?.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
@@ -848,7 +1031,48 @@ window.addEventListener("DOMContentLoaded", () => {
     smoothScrollTo(step3Card);
   });
 
-  // Step 4: App Type Selection
+  // Ask AI Button for Project Description
+  askAiDescBtn?.addEventListener("click", () => {
+    handleAskAiDesc();
+  });
+
+  // File Attachment Controls
+  attachFileBtn?.addEventListener("click", () => {
+    fileAttachmentInput?.click();
+  });
+
+  fileAttachmentInput?.addEventListener("change", (e) => {
+    const target = e.target as HTMLInputElement;
+    const file = target.files?.[0];
+    if (!file) return;
+
+    state.attachedFileName = file.name;
+    if (attachedFileName) attachedFileName.textContent = file.name;
+    attachedFilePill?.classList.remove("hidden");
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result;
+      if (typeof content === "string") {
+        state.attachedFileContent = content;
+      } else {
+        state.attachedFileContent = `[Attached reference document: ${file.name}, size: ${file.size} bytes]`;
+      }
+    };
+    reader.onerror = () => {
+      state.attachedFileContent = `[Attached reference file: ${file.name}]`;
+    };
+    reader.readAsText(file);
+  });
+
+  removeFileBtn?.addEventListener("click", () => {
+    state.attachedFileName = "";
+    state.attachedFileContent = "";
+    if (fileAttachmentInput) fileAttachmentInput.value = "";
+    attachedFilePill?.classList.add("hidden");
+  });
+
+  // Step 4: App Type Selection (Single selection)
   appTypeRow?.addEventListener("click", (e) => {
     const target = e.target as HTMLElement;
     const card = target.closest(".app-type-card") as HTMLElement | null;

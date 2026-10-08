@@ -269,6 +269,69 @@ html, body {
   }
 }
 
+/* Card Top Bar with Step Badge on left & Ask AI button on right */
+.card-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.card-top-bar .step-badge-row {
+  margin-bottom: 0;
+}
+
+/* Top-Right "Ask AI" Button */
+.ask-ai-corner-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #ffffff;
+  border: 1px solid rgba(66, 133, 244, 0.28);
+  color: var(--google-blue-hover);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 4px 11px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: 0 1px 3px rgba(66, 133, 244, 0.06);
+}
+
+.ask-ai-corner-btn:hover {
+  background: var(--google-blue-soft);
+  border-color: var(--google-blue);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(66, 133, 244, 0.15);
+}
+
+.ask-ai-corner-btn:active {
+  transform: translateY(0);
+}
+
+.ask-ai-corner-btn.thinking {
+  opacity: 0.8;
+  cursor: wait;
+  border-color: var(--google-purple);
+  color: var(--google-purple);
+}
+
+.ai-sparkle-dot {
+  font-size: 0.82rem;
+  line-height: 1;
+}
+
+/* AI Auto-fill flash effect */
+@keyframes aiFillFlash {
+  0% { background-color: rgba(66, 133, 244, 0.14); }
+  100% { background-color: transparent; }
+}
+
+.ai-filled-highlight {
+  animation: aiFillFlash 1.2s ease-out;
+}
+
 /* Step Badge Header */
 .step-badge-row {
   display: flex;
@@ -332,6 +395,7 @@ html, body {
 }
 
 .wizard-card.completed .card-header,
+.wizard-card.completed .card-top-bar,
 .wizard-card.completed .card-question-header,
 .wizard-card.completed .input-master-container,
 .wizard-card.completed .status-feed,
@@ -882,27 +946,159 @@ html, body {
   box-shadow: var(--shadow-focus);
 }
 
-.textarea-field {
-  width: 100%;
+/* Integrated Textarea Container */
+.textarea-container {
+  display: flex;
+  flex-direction: column;
   background: #ffffff;
   border: 1.5px solid var(--border-light);
   border-radius: var(--radius-md);
-  padding: 14px 16px;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-fast);
+  margin-bottom: 14px;
+  position: relative;
+  overflow: hidden;
+}
+
+.textarea-container:focus-within {
+  border-color: var(--google-blue);
+  box-shadow: var(--shadow-focus);
+}
+
+.textarea-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px 6px 14px;
+  background: #fafbfc;
+  border-bottom: 1px solid rgba(229, 231, 235, 0.7);
+}
+
+.textarea-hint-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-subtle);
+}
+
+.textarea-container .textarea-field {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 12px 16px;
   font-size: 0.95rem;
   line-height: 1.6;
   color: var(--text-primary);
   font-family: inherit;
   outline: none;
   resize: vertical;
-  min-height: 110px;
-  transition: all var(--transition-fast);
-  box-shadow: var(--shadow-sm);
-  margin-bottom: 14px;
+  min-height: 120px;
+  box-shadow: none;
+  margin-bottom: 0;
 }
 
-.textarea-field:focus {
-  border-color: var(--google-blue);
-  box-shadow: var(--shadow-focus);
+.textarea-container .textarea-field:focus {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+/* File Attachment Control at bottom-right of textarea */
+.textarea-bottom-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 6px 12px 8px 14px;
+  background: #fafbfc;
+  border-top: 1px solid rgba(229, 231, 235, 0.7);
+}
+
+.attach-file-corner-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 4px 11px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.attach-file-corner-btn:hover {
+  background: var(--google-blue-soft);
+  color: var(--google-blue-hover);
+  border-color: rgba(66, 133, 244, 0.4);
+  transform: translateY(-1px);
+}
+
+.paperclip-icon {
+  width: 14px;
+  height: 14px;
+}
+
+/* Attached File Pill */
+.attached-file-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--google-blue-soft);
+  color: var(--google-blue-hover);
+  border: 1px solid rgba(66, 133, 244, 0.3);
+  border-radius: var(--radius-pill);
+  padding: 3px 10px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  max-width: 280px;
+  animation: fadeInPill 0.2s ease-out;
+}
+
+.attached-file-pill.hidden {
+  display: none !important;
+}
+
+.doc-tiny-icon {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  color: var(--google-blue);
+}
+
+.file-name-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 190px;
+}
+
+.remove-file-btn {
+  background: transparent;
+  border: none;
+  color: var(--google-blue);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--transition-fast);
+}
+
+.remove-file-btn:hover {
+  color: var(--google-red);
+}
+
+@keyframes fadeInPill {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 .continue-btn {

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>JRD Creator - AI-Powered Requirements Document</title>
+    <title>JRD Creator - Guided AI Requirements Document</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -66,12 +66,24 @@
       <main class="wizard-stream" id="wizard-stream">
         
         <!-- ===============================================================
-             STEP 1: Google AI Studio API Key (Initial central box)
+             STEP 1: Google AI Studio API Key (Initial box)
              =============================================================== -->
         <section class="wizard-card step-card" id="step-1-card">
-          <div class="step-badge-row">
-            <span class="step-num-pill active" id="step-1-pill">Step 1</span>
-            <span class="step-title-hint">Authentication</span>
+          <div class="card-top-bar">
+            <div class="step-badge-row">
+              <span class="step-num-pill active" id="step-1-pill">Step 1</span>
+              <span class="step-title-hint">Authentication</span>
+            </div>
+            <!-- Top-Right Ask AI Button for API Key Box -->
+            <button
+              type="button"
+              class="ask-ai-corner-btn"
+              id="ask-ai-key-btn"
+              title="Ask AI for API key guidance"
+            >
+              <span class="ai-sparkle-dot">✨</span>
+              <span class="btn-text">Ask AI</span>
+            </button>
           </div>
 
           <div class="card-header">
@@ -239,9 +251,21 @@
              STEP 2: Project Name (Appears after Step 1 is verified)
              =============================================================== -->
         <section class="wizard-card step-card hidden" id="step-2-card">
-          <div class="step-badge-row">
-            <span class="step-num-pill" id="step-2-pill">Step 2</span>
-            <span class="step-title-hint">Project Identity</span>
+          <div class="card-top-bar">
+            <div class="step-badge-row">
+              <span class="step-num-pill" id="step-2-pill">Step 2</span>
+              <span class="step-title-hint">Project Identity</span>
+            </div>
+            <!-- Top-Right Ask AI Button for Project Name Box -->
+            <button
+              type="button"
+              class="ask-ai-corner-btn"
+              id="ask-ai-name-btn"
+              title="Ask AI to suggest or refine project name"
+            >
+              <span class="ai-sparkle-dot">✨</span>
+              <span class="btn-text">Ask AI</span>
+            </button>
           </div>
 
           <div class="card-question-header">
@@ -286,9 +310,11 @@
              STEP 3: Project Description (Appears after Step 2 is submitted)
              =============================================================== -->
         <section class="wizard-card step-card hidden" id="step-3-card">
-          <div class="step-badge-row">
-            <span class="step-num-pill" id="step-3-pill">Step 3</span>
-            <span class="step-title-hint">Project Scope & Purpose</span>
+          <div class="card-top-bar">
+            <div class="step-badge-row">
+              <span class="step-num-pill" id="step-3-pill">Step 3</span>
+              <span class="step-title-hint">Project Scope & Purpose</span>
+            </div>
           </div>
 
           <div class="card-question-header">
@@ -311,13 +337,49 @@
           </div>
 
           <form class="step-form" id="step-3-form">
-            <textarea
-              id="project-description-input"
-              class="textarea-field"
-              rows="4"
-              placeholder="Type your project description here in detail (e.g., A collaborative workflow tool designed for product managers to draft specifications, gather stakeholder consensus, and track engineering progress in real-time)..."
-              spellcheck="true"
-            ></textarea>
+            <!-- Textarea container with Ask AI at top-right and Attach File at bottom-right -->
+            <div class="textarea-container" id="textarea-container">
+              <div class="textarea-top-bar">
+                <span class="textarea-hint-label">Project Description</span>
+                <!-- Ask AI button aligned to top-right inside input area -->
+                <button
+                  type="button"
+                  class="ask-ai-corner-btn"
+                  id="ask-ai-desc-btn"
+                  title="Ask AI to generate or enrich project description"
+                >
+                  <span class="ai-sparkle-dot">✨</span>
+                  <span class="btn-text">Ask AI</span>
+                </button>
+              </div>
+
+              <textarea
+                id="project-description-input"
+                class="textarea-field"
+                rows="5"
+                placeholder="Type your project description here in detail (e.g., A collaborative workflow tool designed for product managers to draft specifications, gather stakeholder consensus, and track engineering progress in real-time)..."
+                spellcheck="true"
+              ></textarea>
+
+              <!-- File attachment control integrated into the bottom-right corner of the text box -->
+              <div class="textarea-bottom-bar">
+                <div class="attached-file-pill hidden" id="attached-file-pill">
+                  <svg viewBox="0 0 16 16" fill="currentColor" class="doc-tiny-icon">
+                    <path d="M4 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4.5L9.5 0H4Zm5 1.5L12.5 5H9V1.5Z"/>
+                  </svg>
+                  <span class="file-name-text" id="attached-file-name">reference.txt</span>
+                  <button type="button" class="remove-file-btn" id="remove-file-btn" title="Remove attached file">×</button>
+                </div>
+
+                <input type="file" id="file-attachment-input" accept=".txt,.md,.json,.csv,.doc,.docx,.pdf" style="display:none;" />
+                <button type="button" class="attach-file-corner-btn" id="attach-file-btn" title="Attach project notes, specs, or reference file">
+                  <svg viewBox="0 0 20 20" fill="currentColor" class="paperclip-icon">
+                    <path fill-rule="evenodd" d="M15.621 4.379a3 3 0 0 0-4.242 0l-7 7a3 3 0 0 0 4.241 4.243h.001l5.236-5.236a.75.75 0 0 0-1.06-1.06l-5.237 5.236a1.5 1.5 0 0 1-2.121-2.121l7-7a1.5 1.5 0 0 1 2.121 2.121l-5.656 5.657a.75.75 0 1 0 1.06 1.06l5.657-5.656a3 3 0 0 0 0-4.243Z" clip-rule="evenodd" />
+                  </svg>
+                  <span>Attach File</span>
+                </button>
+              </div>
+            </div>
 
             <div class="form-actions-right">
               <button type="submit" id="step-3-submit-btn" class="continue-btn">
@@ -344,7 +406,7 @@
 
 
         <!-- ===============================================================
-             STEP 4: App Type Selection (3 horizontal options in one row)
+             STEP 4: App Type Selection (Single selection in one row)
              =============================================================== -->
         <section class="wizard-card step-card hidden" id="step-4-card">
           <div class="step-badge-row">
@@ -354,11 +416,11 @@
 
           <div class="card-question-header">
             <h2 class="question-heading">Will the app be a web app, a desktop app, or an Android app?</h2>
-            <p class="question-subtext">Select the primary platform for which this Joint Requirements Document will be engineered.</p>
+            <p class="question-subtext">Select the target platform for which this Joint Requirements Document will be engineered.</p>
           </div>
 
-          <!-- 3 Horizontal Clickable Options in One Row -->
-          <div class="app-type-row" id="app-type-row" role="radiogroup" aria-label="Select App Type">
+          <!-- 3 Horizontal Clickable Options in One Row (Single selection) -->
+          <div class="app-type-row" id="app-type-row" role="radiogroup" aria-label="Select App Platform">
             <!-- Option 1: Web App -->
             <button
               type="button"
@@ -421,7 +483,7 @@
                 </svg>
               </div>
               <h3 class="app-type-title">Android App</h3>
-              <p class="app-type-desc">Mobile APK/AAB optimized for Android devices</p>
+              <p class="app-type-desc">Mobile application optimized for Android devices</p>
               <div class="type-check-indicator">
                 <span class="check-mark">✓</span>
               </div>
@@ -498,14 +560,14 @@
                   <span id="copy-btn-label">Copy Text</span>
                 </button>
 
-                <!-- DOWNLOAD WORD FILE BUTTON (Core Requirement) -->
+                <!-- DOWNLOAD WORD FILE BUTTON -->
                 <button type="button" id="download-docx-btn" class="download-word-btn" title="Download Word Document (.docx)">
                   <svg viewBox="0 0 24 24" fill="currentColor" class="word-icon">
                     <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" fill="#2b579a"/>
                     <path d="M14 2V8H20" fill="#1e395b"/>
                     <path d="M16 13H8M16 17H8M10 9H8" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round"/>
                   </svg>
-                  <span>Download Word File (.docx)</span>
+                  <span>Download Word File</span>
                 </button>
               </div>
             </div>
